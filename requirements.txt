@@ -1,0 +1,8 @@
+PyQt5>=5.15.9
+PyQt5-Qt5>=5.15.2
+PyQt5-sip>=12.12.1
+mysql-connector-python>=8.0.33
+requests>=2.31.0
+python-dateutil>=2.8.2
+pyinstaller>=5.13.0
+colorama>=0.4.6

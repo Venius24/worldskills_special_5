@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+
+{% block title %}Обмен баллов на награды - Belle Croissant{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'loyalty:detail' customer.id %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Назад к клиенту
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-gift-fill"></i> Обмен баллов на награды
+                </h5>
+            </div>
+            <div class="card-body">
+                <!-- Информация о клиенте -->
+                <div class="alert alert-info">
+                    <h5><i class="bi bi-person-circle"></i> {{ customer.get_full_name }}</h5>
+                    <p class="mb-2">
+                        <strong>Статус:</strong> 
+                        {% if customer.membership_status == 'Gold' %}
+                        <span class="badge" style="background-color: #FFD700; color: #000;">
+                            <i class="bi bi-star-fill"></i> Gold
+                        </span>
+                        {% elif customer.membership_status == 'Silver' %}
+                        <span class="badge" style="background-color: #C0C0C0; color: #000;">
+                            <i class="bi bi-star-fill"></i> Silver
+                        </span>
+                        {% else %}
+                        <span class="badge bg-secondary">
+                            <i class="bi bi-star"></i> Basic
+                        </span>
+                        {% endif %}
+                    </p>
+                    <p class="mb-0">
+                        <strong>Доступные баллы:</strong> 
+                        <span class="badge bg-warning text-dark fs-5">{{ loyalty.loyalty_points }}</span>
+                    </p>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> 
+                    <strong>Обмен стоит 1000 баллов.</strong> После обмена у вас останется 
+                    <strong>{{ loyalty.loyalty_points|add:"-1000" }} баллов</strong>.
+                </div>
+                
+                <!-- Выбор награды -->
+                <h5 class="mb-3"><i class="bi bi-card-checklist"></i> Выберите награду:</h5>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row g-3">
+                        <!-- Скидка 5€ -->
+                        <div class="col-md-6">
+                            <div class="card h-100 border-primary">
+                                <div class="card-body text-center">
+                                    <div class="mb-3">
+                                        <i class="bi bi-cash-coin" style="font-size: 3rem; color: #0d6efd;"></i>
+                                    </div>
+                                    <h5 class="card-title">Скидка 5€</h5>
+                                    <p class="card-text text-muted">
+                                        Фиксированная скидка 5€ на следующую покупку
+                                    </p>
+                                    <hr>
+                                    <ul class="list-unstyled text-start small">
+                                        <li><i class="bi bi-check-circle text-success"></i> Применяется ко всем товарам</li>
+                                        <li><i class="bi bi-check-circle text-success"></i> Действует 30 дней</li>
+                                        <li><i class="bi bi-check-circle text-success"></i> Высокий приоритет</li>
+                                    </ul>
+                                    <button type="submit" name="reward_type" value="fixed_discount" 
+                                            class="btn btn-primary w-100">
+                                        <i class="bi bi-gift"></i> Выбрать
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Скидка 10% -->
+                        <div class="col-md-6">
+                            <div class="card h-100 border-success">
+                                <div class="card-body text-center">
+                                    <div class="mb-3">
+                                        <i class="bi bi-percent" style="font-size: 3rem; color: #198754;"></i>
+                                    </div>
+                                    <h5 class="card-title">Скидка 10%</h5>
+                                    <p class="card-text text-muted">
+                                        Процентная скидка 10% на следующую покупку
+                                    </p>
+                                    <hr>
+                                    <ul class="list-unstyled text-start small">
+                                        <li><i class="bi bi-check-circle text-success"></i> Применяется ко всем товарам</li>
+                                        <li><i class="bi bi-check-circle text-success"></i> Действует 30 дней</li>
+                                        <li><i class="bi bi-check-circle text-success"></i> Высокий приоритет</li>
+                                    </ul>
+                                    <button type="submit" name="reward_type" value="percentage_discount" 
+                                            class="btn btn-success w-100">
+                                        <i class="bi bi-gift"></i> Выбрать
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Повышение уровня -->
+                        {% if loyalty.can_upgrade_membership %}
+                        <div class="col-md-12">
+                            <div class="card border-warning">
+                                <div class="card-body text-center">
+                                    <div class="mb-3">
+                                        <i class="bi bi-arrow-up-circle-fill" style="font-size: 3rem; color: #ffc107;"></i>
+                                    </div>
+                                    <h5 class="card-title">Повышение уровня членства</h5>
+                                    <p class="card-text text-muted">
+                                        Повысьте свой статус с <strong>{{ loyalty.membership_status }}</strong> 
+                                        до <strong>{{ loyalty.get_next_membership_level }}</strong>
+                                    </p>
+                                    <hr>
+                                    <ul class="list-unstyled small">
+                                        <li><i class="bi bi-check-circle text-success"></i> Увеличенный множитель баллов</li>
+                                        <li><i class="bi bi-check-circle text-success"></i> Дополнительные привилегии</li>
+                                        <li><i class="bi bi-check-circle text-success"></i> Навсегда</li>
+                                    </ul>
+                                    <button type="submit" name="reward_type" value="membership_upgrade" 
+                                            class="btn btn-warning w-100">
+                                        <i class="bi bi-star-fill"></i> Повысить статус до {{ loyalty.get_next_membership_level }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="col-md-12">
+                            <div class="card border-secondary">
+                                <div class="card-body text-center text-muted">
+                                    <i class="bi bi-star" style="font-size: 3rem;"></i>
+                                    <h5 class="card-title mt-3">Повышение уровня недоступно</h5>
+                                    <p class="card-text">
+                                        Вы уже достигли максимального уровня членства (<strong>{{ loyalty.membership_status }}</strong>)
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </form>
+                
+                <!-- Информация о баллах -->
+                <div class="alert alert-light mt-4">
+                    <h6><i class="bi bi-info-circle"></i> Информация:</h6>
+                    <ul class="mb-0 small">
+                        <li>Обмен стоит <strong>1000 баллов</strong></li>
+                        <li>Промоакции со скидками будут действовать <strong>30 дней</strong></li>
+                        <li>Скидки имеют <strong>высокий приоритет (99)</strong> и применяются в первую очередь</li>
+                        <li>Повышение уровня членства <strong>постоянно</strong> и увеличивает множитель заработка баллов</li>
+                        <li>Вы можете обменять баллы снова, когда накопите ещё 1000 баллов</li>
+                    </ul>
+                </div>
+                
+                <!-- Кнопка отмены -->
+                <div class="d-grid gap-2 mt-3">
+                    <a href="{% url 'loyalty:detail' customer.id %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i> Отменить
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

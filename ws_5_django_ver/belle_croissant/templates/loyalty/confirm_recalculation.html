@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+
+{% block title %}Подтверждение пересчёта баллов - Belle Croissant{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'loyalty:detail' customer.id %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Назад к клиенту
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="bi bi-calculator"></i> Результаты пересчёта баллов лояльности
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h5><i class="bi bi-person-circle"></i> {{ customer.get_full_name }}</h5>
+                    <p class="mb-0">ID клиента: {{ customer.id }} | Статус: <strong>{{ customer.membership_status }}</strong></p>
+                </div>
+                
+                <!-- Сводка -->
+                <div class="row mb-4">
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h6 class="text-muted">Текущие баллы</h6>
+                                <h2>{{ breakdown.current_points }}</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center border-success">
+                            <div class="card-body">
+                                <h6 class="text-muted">Рассчитанные баллы</h6>
+                                <h2 class="text-success">{{ breakdown.total_points }}</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center">
+                            <div class="card-body">
+                                <h6 class="text-muted">Разница</h6>
+                                <h2 class="{% if breakdown.total_points > breakdown.current_points %}text-success{% elif breakdown.total_points < breakdown.current_points %}text-danger{% else %}text-muted{% endif %}">
+                                    {% if breakdown.total_points > breakdown.current_points %}+{% endif %}
+                                    {{ breakdown.total_points|add:"-"|add:breakdown.current_points }}
+                                </h2>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <i class="bi bi-info-circle"></i> 
+                    <strong>Множитель баллов для статуса {{ customer.membership_status }}:</strong> 
+                    {{ breakdown.multiplier }} баллов за каждые 10€
+                </div>
+                
+                <!-- Детальная разбивка по заказам -->
+                <h5 class="mt-4 mb-3"><i class="bi bi-list-check"></i> Детальная разбивка по заказам</h5>
+                
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Заказ ID</th>
+                                <th>Дата</th>
+                                <th>Сумма</th>
+                                <th>Базовые баллы</th>
+                                <th>Бонус за промо</th>
+                                <th>Бонус годовщины</th>
+                                <th>Итого баллов</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in breakdown.breakdown %}
+                            <tr>
+                                <td><strong>#{{ item.order_id }}</strong></td>
+                                <td><small>{{ item.order_date|date:"d.m.Y" }}</small></td>
+                                <td>{{ item.amount }}€</td>
+                                <td>{{ item.base_points }}</td>
+                                <td>
+                                    {% if item.is_promotion %}
+                                    <span class="badge bg-success">+5</span>
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.is_anniversary %}
+                                    <span class="badge bg-warning text-dark">+25</span>
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td><strong class="text-success">{{ item.total_points }}</strong></td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">
+                                    <i class="bi bi-inbox"></i> Нет завершённых заказов
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-success">
+                                <td colspan="6" class="text-end"><strong>ИТОГО:</strong></td>
+                                <td><strong>{{ breakdown.total_points }}</strong></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                
+                <!-- Легенда -->
+                <div class="alert alert-light mt-3">
+                    <h6><i class="bi bi-info-circle"></i> Правила начисления баллов:</h6>
+                    <ul class="mb-0">
+                        <li><strong>Базовые баллы:</strong> {{ breakdown.multiplier }} баллов за каждые 10€ (зависит от статуса членства)</li>
+                        <li><strong>Бонус за промоакцию:</strong> +5 баллов за покупку во время любой промоакции</li>
+                        <li><strong>Бонус годовщины:</strong> +25 баллов за покупку в день годовщины регистрации</li>
+                    </ul>
+                </div>
+                
+                <!-- Кнопки действий -->
+                <div class="d-grid gap-2 mt-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="confirm">
+                        <button type="submit" class="btn btn-success btn-lg w-100">
+                            <i class="bi bi-check-circle"></i> Подтвердить и применить новые баллы
+                        </button>
+                    </form>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="cancel">
+                        <button type="submit" class="btn btn-outline-secondary w-100">
+                            <i class="bi bi-x-circle"></i> Отменить пересчёт
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

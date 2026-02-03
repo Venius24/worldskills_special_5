@@ -1,0 +1,364 @@
+{% extends 'base.html' %}
+
+{% block title %}Мастер разрешения конфликтов - Belle Croissant{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2><i class="bi bi-exclamation-triangle text-warning"></i> Мастер разрешения конфликтов</h2>
+    <p class="text-muted">Обнаружены конфликты в промоакции "{{ promotion.name }}"</p>
+</div>
+
+<!-- Прогресс бар -->
+<div class="card mb-4">
+    <div class="card-body">
+        <h6>Прогресс разрешения конфликтов</h6>
+        <div class="progress" style="height: 25px;">
+            <div class="progress-bar" role="progressbar" 
+                 style="width: {{ current_conflict_index|add:1 }}00%; width: calc({{ current_conflict_index|add:1 }} / {{ total_conflicts }} * 100%);"
+                 aria-valuenow="{{ current_conflict_index|add:1 }}" 
+                 aria-valuemin="0" 
+                 aria-valuemax="{{ total_conflicts }}">
+                Конфликт {{ current_conflict_index|add:1 }} из {{ total_conflicts }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Шаг 1: Список конфликтов -->
+{% if step == 1 %}
+<div class="card">
+    <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0"><i class="bi bi-1-circle"></i> Шаг 1: Список конфликтов</h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-warning">
+            <i class="bi bi-info-circle"></i> Обнаружено конфликтов: <strong>{{ total_conflicts }}</strong>
+        </div>
+        
+        <h6>Все конфликты:</h6>
+        <div class="list-group mb-4">
+            {% for conflict in conflicts %}
+            <div class="list-group-item {% if forloop.counter0 == current_conflict_index %}active{% endif %}">
+                <div class="d-flex w-100 justify-content-between">
+                    <h6 class="mb-1">
+                        {% if forloop.counter0 == current_conflict_index %}
+                        <i class="bi bi-arrow-right-circle"></i>
+                        {% endif %}
+                        Конфликт #{{ forloop.counter }}
+                    </h6>
+                    <small>Приоритет: {{ conflict.priority }}</small>
+                </div>
+                <p class="mb-1">
+                    <strong>{{ promotion.name }}</strong> ↔ <strong>{{ conflict.promotion2_name }}</strong>
+                </p>
+                <small>
+                    Продукты: {{ conflict.common_products|join:", " }} | 
+                    Период: {{ conflict.overlap_start|slice:":10" }} - {{ conflict.overlap_end|slice:":10" }}
+                </small>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <hr>
+        
+        <h6>Текущий конфликт ({{ current_conflict_index|add:1 }}/{{ total_conflicts }}):</h6>
+        <div class="card border-warning mb-3">
+            <div class="card-body">
+                <h5 class="card-title">{{ promotion.name }} ↔ {{ current_conflict.promotion2_name }}</h5>
+                <ul class="list-unstyled">
+                    <li><strong>Конфликтующие продукты:</strong> {{ current_conflict.common_products|join:", " }}</li>
+                    <li><strong>Пересечение дат:</strong> {{ current_conflict.overlap_start|slice:":19" }} - {{ current_conflict.overlap_end|slice:":19" }}</li>
+                    <li><strong>Приоритет обеих промоакций:</strong> {{ current_conflict.priority }}</li>
+                </ul>
+                
+                <!-- Временная шкала -->
+                <div class="mt-3">
+                    <h6>Временная шкала:</h6>
+                    <div class="timeline-container p-3 bg-light rounded">
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="bg-primary text-white p-2 rounded mb-2">
+                                    <strong>{{ promotion.name }}</strong><br>
+                                    <small>{{ promotion.start_date|date:"d.m.Y" }} - {{ promotion.end_date|date:"d.m.Y" }}</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="bg-danger text-white p-2 rounded mb-2">
+                                    <strong>{{ current_conflict.promotion2_name }}</strong><br>
+                                    <small>{{ current_conflict.overlap_start|slice:":10" }} - {{ current_conflict.overlap_end|slice:":10" }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center mt-2">
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-exclamation-triangle"></i> Пересечение: 
+                                {{ current_conflict.overlap_start|slice:":10" }} - {{ current_conflict.overlap_end|slice:":10" }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="d-grid gap-2">
+            <form method="post" action="{% url 'promotions:wizard_action' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="next_step">
+                <button type="button" class="btn btn-primary btn-lg" onclick="showStep(2)">
+                    Перейти к разрешению <i class="bi bi-arrow-right"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Шаг 2: Уведомление о конфликте (детально) -->
+<div class="card mb-3" id="step2" style="display: {% if step == 2 %}block{% else %}none{% endif %};">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0"><i class="bi bi-2-circle"></i> Шаг 2: Детальная информация о конфликте</h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <h6><i class="bi bi-info-circle"></i> Причина конфликта:</h6>
+            <p class="mb-0">
+                Промоакции "<strong>{{ promotion.name }}</strong>" и "<strong>{{ current_conflict.promotion2_name }}</strong>" 
+                имеют одинаковый приоритет (<strong>{{ current_conflict.priority }}</strong>) и применяются к одним и тем же продуктам 
+                в пересекающийся период времени.
+            </p>
+        </div>
+        
+        <div class="row mt-3">
+            <div class="col-md-6">
+                <h6><i class="bi bi-box"></i> Конфликтующие продукты:</h6>
+                <div class="list-group">
+                    {% for product_id in current_conflict.common_products %}
+                    <div class="list-group-item">
+                        ID: {{ product_id }}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h6><i class="bi bi-calendar-range"></i> Пересекающиеся даты:</h6>
+                <table class="table table-sm">
+                    <tr>
+                        <th>Начало:</th>
+                        <td>{{ current_conflict.overlap_start|slice:":19" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Окончание:</th>
+                        <td>{{ current_conflict.overlap_end|slice:":19" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Приоритет:</th>
+                        <td><span class="badge bg-secondary">{{ current_conflict.priority }}</span></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        
+        <div class="d-grid gap-2 mt-3">
+            <button type="button" class="btn btn-primary" onclick="showStep(3)">
+                Продолжить <i class="bi bi-arrow-right"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="showStep(1)">
+                <i class="bi bi-arrow-left"></i> Назад
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Шаг 3: Изменение приоритета -->
+<div class="card mb-3" id="step3" style="display: {% if step == 3 %}block{% else %}none{% endif %};">
+    <div class="card-header" style="background-color: #6610f2; color: white;">
+        <h5 class="mb-0"><i class="bi bi-3-circle"></i> Шаг 3: Изменение приоритета</h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle"></i> 
+            <strong>Внимание:</strong> Изменение приоритета может не разрешить конфликт, если продукты 
+            всё ещё участвуют в нескольких промоакциях с одинаковым приоритетом.
+        </div>
+        
+        <p>
+            Приоритет определяет, какая промоакция будет применена первой при наличии нескольких подходящих акций. 
+            Более высокий приоритет означает, что промоакция будет применена в первую очередь.
+        </p>
+        
+        <form method="post" action="{% url 'promotions:wizard_action' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="change_priority">
+            
+            <div class="mb-3">
+                <label class="form-label">Текущий приоритет: <strong>{{ promotion.priority }}</strong></label>
+                <label class="form-label mt-2">Новый приоритет:</label>
+                <select class="form-select" name="new_priority" required>
+                    {% for i in "12345678910"|make_list %}
+                    <option value="{{ forloop.counter }}" {% if promotion.priority == forloop.counter %}selected{% endif %}>
+                        Приоритет {{ forloop.counter }} {% if forloop.counter > promotion.priority %}(выше){% elif forloop.counter < promotion.priority %}(ниже){% endif %}
+                    </option>
+                    {% endfor %}
+                    <option value="99">Приоритет 99 (максимальный)</option>
+                </select>
+            </div>
+            
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i> Изменить приоритет
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="showStep(4)">
+                    Пропустить <i class="bi bi-arrow-right"></i>
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="showStep(2)">
+                    <i class="bi bi-arrow-left"></i> Назад
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Шаг 4: Корректировка даты/продукта -->
+<div class="card mb-3" id="step4" style="display: {% if step == 4 %}block{% else %}none{% endif %};">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-4-circle"></i> Шаг 4: Корректировка даты или удаление продуктов</h5>
+    </div>
+    <div class="card-body">
+        <ul class="nav nav-tabs mb-3" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="tab" href="#adjustDates">
+                    <i class="bi bi-calendar-event"></i> Изменить даты
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#removeProducts">
+                    <i class="bi bi-trash"></i> Удалить продукты
+                </a>
+            </li>
+        </ul>
+        
+        <div class="tab-content">
+            <!-- Корректировка дат -->
+            <div class="tab-pane fade show active" id="adjustDates">
+                <h6>Изменение периода действия промоакции</h6>
+                <p class="text-muted">
+                    Измените даты начала или окончания, чтобы избежать пересечения с конфликтующей промоакцией.
+                </p>
+                
+                <form method="post" action="{% url 'promotions:wizard_action' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="adjust_dates">
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Новая дата начала</label>
+                            <input type="datetime-local" class="form-control" name="new_start_date" 
+                                   value="{{ promotion.start_date|date:'Y-m-d\TH:i' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Новая дата окончания</label>
+                            <input type="datetime-local" class="form-control" name="new_end_date" 
+                                   value="{{ promotion.end_date|date:'Y-m-d\TH:i' }}">
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <strong>Совет:</strong> Чтобы избежать конфликта, установите дату окончания до 
+                        {{ current_conflict.overlap_start|slice:":10" }} или дату начала после 
+                        {{ current_conflict.overlap_end|slice:":10" }}
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-check-circle"></i> Применить новые даты
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Удаление продуктов -->
+            <div class="tab-pane fade" id="removeProducts">
+                <h6>Удаление конфликтующих продуктов</h6>
+                <p class="text-muted">
+                    Выберите продукты, которые нужно удалить из этой промоакции, чтобы устранить конфликт.
+                </p>
+                
+                <form method="post" action="{% url 'promotions:wizard_action' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="remove_products">
+                    
+                    <div class="list-group mb-3">
+                        {% for product_id in current_conflict.common_products %}
+                        <label class="list-group-item">
+                            <input class="form-check-input me-2" type="checkbox" name="products_to_remove" value="{{ product_id }}">
+                            Продукт ID: {{ product_id }}
+                        </label>
+                        {% endfor %}
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success w-100">
+                        <i class="bi bi-check-circle"></i> Удалить выбранные продукты
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <div class="d-grid gap-2 mt-3">
+            <button type="button" class="btn btn-outline-secondary" onclick="showStep(5)">
+                Пропустить <i class="bi bi-arrow-right"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="showStep(3)">
+                <i class="bi bi-arrow-left"></i> Назад
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Шаг 5: Отмена -->
+<div class="card mb-3" id="step5" style="display: {% if step == 5 %}block{% else %}none{% endif %};">
+    <div class="card-header bg-danger text-white">
+        <h5 class="mb-0"><i class="bi bi-5-circle"></i> Шаг 5: Отменить создание промоакции</h5>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle-fill"></i> 
+            <strong>Внимание!</strong> Вы собираетесь отменить создание промоакции.
+        </div>
+        
+        <p>Если конфликт не может быть разрешён, вы можете отменить создание этой промоакции.</p>
+        <p><strong>Все изменения будут потеряны!</strong></p>
+        
+        <form method="post" action="{% url 'promotions:wizard_action' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="cancel">
+            
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-danger">
+                    <i class="bi bi-x-circle"></i> Отменить создание промоакции
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="showStep(4)">
+                    <i class="bi bi-arrow-left"></i> Назад к разрешению
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showStep(stepNumber) {
+    // Скрываем все шаги
+    for (let i = 2; i <= 5; i++) {
+        const step = document.getElementById('step' + i);
+        if (step) step.style.display = 'none';
+    }
+    
+    // Показываем нужный шаг
+    const targetStep = document.getElementById('step' + stepNumber);
+    if (targetStep) {
+        targetStep.style.display = 'block';
+        targetStep.scrollIntoView({ behavior: 'smooth' });
+    }
+}
+</script>
+{% endblock %}

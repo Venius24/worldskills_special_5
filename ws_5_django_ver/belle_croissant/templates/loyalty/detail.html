@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ customer.get_full_name }} - Программа лояльности{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'loyalty:list' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Назад к списку
+    </a>
+</div>
+
+<!-- Информация о клиенте -->
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-person-circle"></i> Информация о клиенте
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>ID клиента:</strong> {{ customer.id }}</p>
+                        <p><strong>Имя:</strong> {{ customer.first_name }}</p>
+                        <p><strong>Фамилия:</strong> {{ customer.last_name }}</p>
+                        <p><strong>Email:</strong> {{ customer.email }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Статус:</strong>
+                            {% if customer.membership_status == 'Gold' %}
+                            <span class="badge" style="background-color: #FFD700; color: #000;">
+                                <i class="bi bi-star-fill"></i> Gold
+                            </span>
+                            {% elif customer.membership_status == 'Silver' %}
+                            <span class="badge" style="background-color: #C0C0C0; color: #000;">
+                                <i class="bi bi-star-fill"></i> Silver
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary">
+                                <i class="bi bi-star"></i> Basic
+                            </span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Дата регистрации:</strong> {{ customer.registration_date|date:"d.m.Y" }}</p>
+                        <p><strong>Общие траты:</strong> <span class="badge bg-success">{{ customer.total_spending }}€</span></p>
+                        <p><strong>Последний расчёт баллов:</strong> 
+                            {% if loyalty.last_points_calculation %}
+                            {{ loyalty.last_points_calculation|date:"d.m.Y H:i" }}
+                            {% else %}
+                            <span class="text-muted">Не производился</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Баллы лояльности -->
+    <div class="col-md-4">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="bi bi-star-fill"></i> Баллы лояльности
+                </h5>
+            </div>
+            <div class="card-body text-center">
+                <h1 class="display-3 mb-3">{{ loyalty.loyalty_points }}</h1>
+                <p class="text-muted mb-3">баллов</p>
+                
+                {% if can_redeem %}
+                <div class="alert alert-success mb-3">
+                    <i class="bi bi-gift-fill"></i> Доступен обмен на награды!
+                </div>
+                {% endif %}
+                
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editPointsModal">
+                        <i class="bi bi-pencil"></i> Изменить баллы
+                    </button>
+                    <a href="{% url 'loyalty:recalculate' customer.id %}" class="btn btn-info">
+                        <i class="bi bi-calculator"></i> Пересчитать баллы
+                    </a>
+                    {% if can_redeem %}
+                    <a href="{% url 'loyalty:redeem' customer.id %}" class="btn btn-success">
+                        <i class="bi bi-gift"></i> Обменять награды
+                    </a>
+                    {% else %}
+                    <button class="btn btn-secondary" disabled>
+                        <i class="bi bi-gift"></i> Обменять (мин. 1000)
+                    </button>
+                    {% endif %}
+                </div>
+                
+                {% if can_upgrade %}
+                <div class="alert alert-info mt-3 mb-0">
+                    <small>
+                        <i class="bi bi-arrow-up-circle"></i> 
+                        При обмене можно повысить до <strong>{{ next_level }}</strong>
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- История транзакций -->
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-clock-history"></i> История транзакций
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if transactions %}
+                <div class="list-group">
+                    {% for transaction in transactions %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">
+                                {% if transaction.transaction_type == 'earn' %}
+                                <i class="bi bi-arrow-up-circle text-success"></i> Начисление
+                                {% elif transaction.transaction_type == 'redeem' %}
+                                <i class="bi bi-arrow-down-circle text-danger"></i> Списание
+                                {% elif transaction.transaction_type == 'bonus' %}
+                                <i class="bi bi-gift text-warning"></i> Бонус
+                                {% else %}
+                                <i class="bi bi-pencil text-info"></i> Корректировка
+                                {% endif %}
+                            </h6>
+                            <small>{{ transaction.created_at|date:"d.m.Y H:i" }}</small>
+                        </div>
+                        <p class="mb-1">
+                            <strong class="{% if transaction.points > 0 %}text-success{% else %}text-danger{% endif %}">
+                                {% if transaction.points > 0 %}+{% endif %}{{ transaction.points }} баллов
+                            </strong>
+                        </p>
+                        {% if transaction.description %}
+                        <small class="text-muted">{{ transaction.description }}</small>
+                        {% endif %}
+                        {% if transaction.order_id %}
+                        <br><small class="badge bg-info">Заказ #{{ transaction.order_id }}</small>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center">
+                    <i class="bi bi-inbox"></i> История транзакций пуста
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- История обменов наград -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-gift"></i> История обменов наград
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if redemptions %}
+                <div class="list-group">
+                    {% for redemption in redemptions %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ redemption.get_reward_type_display }}</h6>
+                            <small>{{ redemption.redeemed_at|date:"d.m.Y H:i" }}</small>
+                        </div>
+                        <p class="mb-1">
+                            <span class="badge bg-danger">-{{ redemption.points_spent }} баллов</span>
+                        </p>
+                        {% if redemption.promotion_id %}
+                        <small class="text-muted">Промоакция ID: {{ redemption.promotion_id }}</small>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted text-center">
+                    <i class="bi bi-inbox"></i> Награды ещё не обменивались
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно редактирования баллов -->
+<div class="modal fade" id="editPointsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'loyalty:update_points' customer.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-pencil"></i> Изменить баллы лояльности
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        Изменение баллов вручную создаст транзакцию корректировки.
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Текущие баллы</label>
+                        <input type="text" class="form-control" value="{{ loyalty.loyalty_points }}" disabled>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Новое значение баллов *</label>
+                        <input type="number" class="form-control" name="loyalty_points" 
+                               value="{{ loyalty.loyalty_points }}" min="0" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> Сохранить
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
