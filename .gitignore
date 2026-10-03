@@ -1,0 +1,11 @@
+.env
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.db
+*.sqlite3
+Session5_DatabaseCredentials.txt
+build/
+dist/
+*.spec

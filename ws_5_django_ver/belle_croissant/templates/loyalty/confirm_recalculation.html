@@ -80,7 +80,7 @@
                             {% for item in breakdown.breakdown %}
                             <tr>
                                 <td><strong>#{{ item.order_id }}</strong></td>
-                                <td><small>{{ item.order_date|date:"d.m.Y" }}</small></td>
+                                <td><small>{{ item.order_date }}</small></td>
                                 <td>{{ item.amount }}€</td>
                                 <td>{{ item.base_points }}</td>
                                 <td>

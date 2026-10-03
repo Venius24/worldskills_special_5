@@ -56,7 +56,10 @@ def loyalty_list(request):
         })
     
     # Пагинация
-    per_page = int(request.GET.get('per_page', 10))
+    try:
+        per_page = min(max(int(request.GET.get('per_page', 10)), 1), 100)
+    except ValueError:
+        per_page = 10
     paginator = Paginator(customers_data, per_page)
     page_number = request.GET.get('page', 1)
     page_obj = paginator.get_page(page_number)
@@ -193,8 +196,8 @@ def loyalty_recalculate_points(request, customer_id):
         
         breakdown.append({
             'order_id': order.id,
-            'order_date': order.order_date,
-            'amount': order.total_amount,
+            'order_date': order.order_date.date().isoformat(),
+            'amount': str(order.total_amount),
             'base_points': base_points,
             'bonus_points': bonus_points,
             'total_points': order_total_points,
